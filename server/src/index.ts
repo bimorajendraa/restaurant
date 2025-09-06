@@ -21,6 +21,8 @@ import tablesRoutes from '@/routes/table.route'
 import guestRoutes from '@/routes/guest.route'
 import orderRoutes from '@/routes/order.route'
 import { socketPlugin } from '@/plugins/socket.plugins'
+import indicatorRoutes from '@/routes/indicator.route'
+import autoRemoveRefreshTokenJob from '@/jobs/autoRemoveRefreshToken.job'
 
 const fastify = Fastify({
   logger: false
@@ -30,6 +32,7 @@ const fastify = Fastify({
 const start = async () => {
   try {
     createFolder(path.resolve(envConfig.UPLOAD_FOLDER))
+    autoRemoveRefreshTokenJob()
     const whitelist = ['*']
     fastify.register(cors, {
       origin: whitelist, // Cho phép tất cả các domain gọi API
@@ -49,7 +52,7 @@ const start = async () => {
     fastify.register(errorHandlerPlugin)
     fastify.register(fastifySocketIO, {
       cors: {
-        origin: 'http://localhost:3000'
+        origin: envConfig.CLIENT_URL
       }
     })
     fastify.register(socketPlugin)
@@ -79,6 +82,9 @@ const start = async () => {
     })
     fastify.register(guestRoutes, {
       prefix: '/guest'
+    })
+    fastify.register(indicatorRoutes, {
+      prefix: '/indicators'
     })
     await initOwnerAccount()
     await fastify.listen({
