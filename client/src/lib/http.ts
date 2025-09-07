@@ -3,7 +3,13 @@
 import envConfig from "@/config";
 import { LoginResType } from "@/schemas/auth.schema";
 import { redirect } from "next/navigation";
-import { normalizePath } from "./utils";
+import {
+  normalizePath,
+  removeAccessTokenFromLocalStorage,
+  removeRefreshTokenFromLocalStorage,
+  setAccessTokenToLocalStorage,
+  setRefreshTokenToLocalStorage,
+} from "./utils";
 
 type CustomOptions = Omit<RequestInit, "method"> & {
   baseUrl?: string | undefined;
@@ -161,18 +167,14 @@ const request = async <Response>(
   }
 
   if (isClient) {
-    const check = ["/auth/register", "/auth/login"].some((path) =>
-      path.startsWith(url)
-    );
-    const checkLogout = ["/auth/logout"].some((path) => path.startsWith(url));
-
-    if (check) {
+    const normalizeURL = normalizePath(url);
+    if (normalizeURL === "api/auth/login") {
       const { accessToken, refreshToken } = (payload as LoginResType).data;
-      localStorage.setItem("accessToken", accessToken);
-      localStorage.setItem("refreshToken", refreshToken);
-    } else if (checkLogout) {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
+      setAccessTokenToLocalStorage(accessToken);
+      setRefreshTokenToLocalStorage(refreshToken);
+    } else if (normalizeURL === "api/auth/logout") {
+      removeAccessTokenFromLocalStorage();
+      removeRefreshTokenFromLocalStorage();
     }
   }
 

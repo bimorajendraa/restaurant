@@ -37,3 +37,29 @@ export const handleErrorApi = ({
     });
   }
 };
+
+const isBrowser = typeof window !== "undefined";
+
+export const getAccessTokenFromLocalStorage = () => {
+  return isBrowser ? localStorage.getItem("accessToken") : null;
+};
+
+export const setAccessTokenToLocalStorage = (token: string) => {
+  return isBrowser ? localStorage.setItem("accessToken", token) : null;
+};
+
+export const getRefreshTokenFromLocalStorage = () => {
+  return isBrowser ? localStorage.getItem("refreshToken") : null;
+};
+
+export const setRefreshTokenToLocalStorage = (token: string) => {
+  return isBrowser ? localStorage.setItem("refreshToken", token) : null;
+};
+
+export const removeAccessTokenFromLocalStorage = () => {
+  return isBrowser ? localStorage.removeItem("accessToken") : null;
+};
+
+export const removeRefreshTokenFromLocalStorage = () => {
+  return isBrowser ? localStorage.removeItem("refreshToken") : null;
+};
