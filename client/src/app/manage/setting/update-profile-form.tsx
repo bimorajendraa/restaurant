@@ -5,24 +5,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload } from "lucide-react";
 import { useForm } from "react-hook-form";
-import {
-  AccountResType,
-  UpdateMeBody,
-  UpdateMeBodyType,
-} from "@/schemas/account.schema";
+import { UpdateMeBody, UpdateMeBodyType } from "@/schemas/account.schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQueryAccount } from "@/queries/useQueryAccount";
+import { useAccountMeQuery, useUpdateMeMutation } from "@/queries/useAccount";
+import { handleErrorApi } from "@/lib/utils";
+import { useUploadMediaMutation } from "@/queries/useMedia";
+import { toast } from "@/components/ui/use-toast";
 
 export default function UpdateProfileForm() {
   const [file, setFile] = useState<File | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  const { data } = useQueryAccount();
   // dữ liệu người dùng lấy từ API
-
+  const { data, refetch } = useAccountMeQuery();
+  const updateMeMutation = useUpdateMeMutation();
+  const uploadMediaMutation = useUploadMediaMutation();
   const form = useForm<UpdateMeBodyType>({
     resolver: zodResolver(UpdateMeBody),
     defaultValues: {
@@ -30,33 +30,66 @@ export default function UpdateProfileForm() {
       avatar: "",
     },
   });
-
   // đổ dữ liệu từ API vào form
   useEffect(() => {
     if (data) {
       const { name, avatar } = data.payload.data;
       form.reset({
         name: name,
-        avatar: avatar || "",
+        avatar: avatar ?? "",
       });
     }
   }, [data, form]);
 
+  // lấy avatar và name mặc định từ form ra
   const avatar = form.watch("avatar");
   const name = form.watch("name");
 
   const preview = useMemo(() => {
-    if (file) {
-      return URL.createObjectURL(file);
-    }
-    return avatar;
+    return file ? URL.createObjectURL(file) : avatar;
   }, [file, avatar]);
 
+  const onReset = () => {
+    console.log("onReset");
+    form.reset();
+    setFile(null);
+  };
+  const onSubmit = async (values: UpdateMeBodyType) => {
+    if (updateMeMutation.isPending) return;
+    try {
+      let body = values;
+      if (file) {
+        const formData = new FormData();
+        formData.append("file", file as Blob);
+        console.log(1);
+        const uploadImageResult = await uploadMediaMutation.mutateAsync(
+          formData
+        );
+        const imageURL = uploadImageResult.payload.data;
+        body = {
+          ...values,
+          avatar: imageURL,
+        };
+      }
+      const result = await updateMeMutation.mutateAsync(body);
+      toast({
+        description: result.payload.message,
+      });
+      refetch();
+    } catch (error) {
+      handleErrorApi({
+        error,
+        setError: form.setError,
+      });
+    }
+  };
   return (
     <Form {...form}>
       <form
         noValidate
         className="grid auto-rows-max items-start gap-4 md:gap-8"
+        onReset={onReset}
+        onSubmit={form.handleSubmit(onSubmit)}
       >
         <Card x-chunk="dashboard-07-chunk-0">
           <CardHeader>
@@ -85,6 +118,10 @@ export default function UpdateProfileForm() {
                           const file = e.target.files?.[0] || null;
                           if (file) {
                             setFile(file);
+                            field.onChange(
+                              "http://localhost:3000/" + file.name
+                            );
+                            // fake url
                           }
                         }}
                       />

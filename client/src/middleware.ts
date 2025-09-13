@@ -9,7 +9,6 @@ const unAuthPaths = ["/login"];
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAuth = Boolean(request.cookies.get("accessToken")?.value);
-  console.log(isAuth);
 
   if (!isAuth && privatePaths.some((path) => pathname.startsWith(path))) {
     return NextResponse.redirect(new URL("/login", request.url));

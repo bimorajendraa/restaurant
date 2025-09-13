@@ -13,11 +13,11 @@ import Link from "next/link";
 import { useLogoutMutation } from "@/queries/useAuth";
 import { handleErrorApi } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { useQueryAccount } from "@/queries/useQueryAccount";
+import { useAccountMeQuery } from "@/queries/useAccount";
 
 export default function DropdownAvatar() {
   const logoutMutation = useLogoutMutation();
-  const { data } = useQueryAccount();
+  const { data } = useAccountMeQuery();
   const account = data?.payload.data;
   const router = useRouter();
 
