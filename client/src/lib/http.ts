@@ -90,7 +90,7 @@ const request = async <Response>(
       ? envConfig.DOCKER_PUBLIC_API_ENDPOINT || envConfig.NEXT_PUBLIC_API_ENDPOINT
       : options.baseUrl
   const fullUrl = `${baseUrl}/${normalizePath(url)}`
-  console.log('fullUrl:', fullUrl)
+  // console.log('fullUrl:', fullUrl)
   // gửi request
   const res = await fetch(fullUrl, {
     ...options,

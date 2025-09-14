@@ -1,0 +1,3 @@
+#kĩ thuật tránh call duplicate api ở refresh-token và logout 
+#restaurant-management/client/src/app/(public)/(auth)/logout/page.tsx - sử dụng useRef
+#restaurant-management/client/src/apiRequests/auth.ts - sử dụng 
