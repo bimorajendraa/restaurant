@@ -81,7 +81,8 @@ export const checkAndRefreshToken = async ({
   const decodeAccessToken = jwt.decode(accessToken) as { exp: number; iat: number }
   const decodeRefreshToken = jwt.decode(refreshToken) as { exp: number; iat: number }
 
-  const currentTime = Math.round(new Date().getTime() / 1000) // new Date() trả về mili giây nên chia 1000 để ra giây
+  // không nên làm tròn thời gian hết hạn
+  const currentTime = new Date().getTime() / 1000 - 1 // new Date() trả về mili giây nên chia 1000 để ra giây và trừ 1 giây để tránh trường hợp thời gian hiện tại trùng với thời gian hết hạn
 
   if (decodeRefreshToken.exp <= currentTime) {
     removeAccessTokenFromLocalStorage()
