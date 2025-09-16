@@ -15,21 +15,23 @@ export default function LogoutPage() {
   // lấy refreshToken từ query param
   const isLoggingOut = useRef(null)
   // tạo một biến để giữ trạng thái đăng xuất, tránh việc gọi nhiều lần
-
   useEffect(() => {
     if (
-      isLoggingOut.current ||
-      (refreshTokenFromURL && refreshTokenFromURL !== getRefreshTokenFromLocalStorage()) ||
-      (accessTokenFromURL && accessTokenFromURL !== getAccessTokenFromLocalStorage())
-    )
-      return
-    mutateAsync().then(() => {
-      router.push('/login')
-      setTimeout(() => {
-        isLoggingOut.current = null
-      }, 2000)
-      // đặt lại biến sau 2 giây logout
-    })
+      !isLoggingOut.current &&
+      ((refreshTokenFromURL && refreshTokenFromURL === getRefreshTokenFromLocalStorage()) ||
+        (accessTokenFromURL && accessTokenFromURL === getAccessTokenFromLocalStorage()))
+    ) {
+      mutateAsync().then(() => {
+        router.push('/login')
+        setTimeout(() => {
+          isLoggingOut.current = null
+        }, 10)
+        // setTimeout để tránh việc user logout duplicate
+      })
+    } else {
+      // trường hợp hi hữu là token khi refreshToken hoặc accessToken không hợp lệ hoặc không khớp -> tránh dừng lại ở page này
+      router.push('/')
+    }
   }, [mutateAsync, router, refreshTokenFromURL, accessTokenFromURL])
 
   return <div>Logging out...</div>

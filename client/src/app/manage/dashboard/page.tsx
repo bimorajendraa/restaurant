@@ -8,9 +8,7 @@ export default async function Dashboard() {
   let name = ''
   try {
     const result = await accountApiRequest.sMe(accessToken)
-    console.log(result)
     name = result.payload.data.name
-    console.log('name', name)
   } catch (error: any) {
     console.log(error)
     if (error?.digest?.includes('NEXT_REDIRECT')) throw error
