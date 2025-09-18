@@ -51,7 +51,6 @@ export default function UpdateProfileForm() {
   }, [file, avatar])
 
   const onReset = () => {
-    console.log('onReset')
     form.reset()
     setFile(null)
   }

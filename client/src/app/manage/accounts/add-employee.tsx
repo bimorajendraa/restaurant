@@ -50,10 +50,10 @@ export default function AddEmployee() {
     return avatar
   }, [file, avatar])
 
-  const onReset = () => {
-    console.log('onReset')
+  const reset = () => {
     form.reset()
     setFile(null)
+    setOpen(false)
   }
 
   const onSubmit = async (values: CreateEmployeeAccountBodyType) => {
@@ -63,7 +63,6 @@ export default function AddEmployee() {
       if (file) {
         const formData = new FormData()
         formData.append('file', file as Blob)
-        console.log(1)
         const uploadImageResult = await uploadMediaMutation.mutateAsync(formData)
         const imageURL = uploadImageResult.payload.data
         body = {
@@ -75,7 +74,7 @@ export default function AddEmployee() {
       toast({
         description: result.payload.message,
       })
-      setOpen(false)
+      reset()
     } catch (error) {
       handleErrorApi({
         error,
@@ -104,7 +103,6 @@ export default function AddEmployee() {
             onSubmit={form.handleSubmit(onSubmit, (e) => {
               console.log(e)
             })}
-            onReset={onReset}
           >
             <div className="grid gap-4 py-4">
               <FormField

@@ -68,3 +68,8 @@ const setIsAuth = useCallback((isAuth: boolean) => {
 - [restaurant-management/client/src/app/(public)/nav-items.tsx] -> component 1
 - [restaurant-management/client/src/app/(public)/(auth)/login/login-form.tsx] -> component 2
   -> cùng sử dụng context là isAuth thì chỉ cần isAuth thay đổi thì cả 2 component đều bị re-render
+
+### Note
+
+- Đóng dialog (X), click ra ngoài dialog → giữ nguyên dữ liệu đã nhập (cache đến khi F5).
+- Submit thành công → reset form values.
