@@ -95,7 +95,8 @@ export default function OrderTable() {
 
   const updateOrderMutation = useUpdateOrderMutation()
 
-  const changeStatus = async (body: { // change order status
+  const changeStatus = async (body: {
+    // change order status
     orderId: number
     dishId: number
     status: (typeof OrderStatusValues)[number]
@@ -186,16 +187,27 @@ export default function OrderTable() {
       refetch()
     }
 
+    function onPayment(data: PayGuestOrdersResType['data']) {
+      const guest = data[0].guest
+      toast({
+        title: 'Thanh toán',
+        description: `${guest?.name} tại bàn ${guest?.tableNumber} đã thanh toán ${data.length} đơn.`,
+      })
+      refetch()
+    }
+
     socket.on('connect', onConnect)
     socket.on('disconnect', onDisconnect)
     socket.on('new-order', onNewOrder)
     socket.on('update-order', onUpdateOrder)
+    socket.on('payment', onPayment)
 
     return () => {
       socket.off('connect', onConnect)
       socket.off('disconnect', onDisconnect)
       socket.off('new-order', onNewOrder)
       socket.off('update-order', onUpdateOrder)
+      socket.off('payment', onPayment)
     }
   }, [fromDate, refetchOrderList, toDate])
 
