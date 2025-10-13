@@ -5,7 +5,7 @@ import type { NextRequest } from 'next/server'
 
 const managePaths = ['/manage']
 const guestPaths = ['/guest']
-
+const adminPaths = ['/manage/accounts']
 const privatePaths = [...managePaths, ...guestPaths]
 const unAuthPaths = ['/login']
 
@@ -42,12 +42,14 @@ export function middleware(request: NextRequest) {
     // - required accessToken
     if (accessToken) {
       const role = decodeToken(accessToken).role
-      console.log(role)
-
+      // Khách hàng(guest) không được truy cập trang quản lý(employee, owner)
       const isGuestToManagePath = role === Role.Guest && managePaths.some((path) => pathname.startsWith(path))
+      // Quản lý(employee) không được truy cập trang khách(guest)
       const isNotGuestGoToGuestPath = role !== Role.Guest && guestPaths.some((path) => pathname.startsWith(path))
+      // Quản lý(employee) không được truy cập trang admin(owner)
+      const isNotAdminToAdminPath = role !== Role.Owner && adminPaths.some((path) => pathname.startsWith(path))
 
-      if (isGuestToManagePath || isNotGuestGoToGuestPath) {
+      if (isGuestToManagePath || isNotGuestGoToGuestPath || isNotAdminToAdminPath) {
         return NextResponse.redirect(new URL('/', request.url))
       }
     }
