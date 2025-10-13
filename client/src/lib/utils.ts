@@ -75,9 +75,11 @@ export const removeRefreshTokenFromLocalStorage = () => {
 export const checkAndRefreshToken = async ({
   onError,
   onSuccess,
+  force,
 }: {
   onError?: () => void
   onSuccess?: () => void
+  force?: boolean // Bắt buộc gọi API refresh token
 }) => {
   // 1. Lấy token hiện tại từ localStorage
   const accessToken = getAccessTokenFromLocalStorage()
@@ -100,7 +102,7 @@ export const checkAndRefreshToken = async ({
   }
 
   // 5. Nếu access token còn < 1/3 thời gian sống → gọi API refresh
-  if (decodeAccessToken.exp - currentTime < (decodeAccessToken.exp - decodeAccessToken.iat) / 3) {
+  if (force || decodeAccessToken.exp - currentTime < (decodeAccessToken.exp - decodeAccessToken.iat) / 3) {
     try {
       console.log('access token sắp hết hạn')
       const role = decodeAccessToken.role
