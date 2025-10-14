@@ -13,6 +13,7 @@ import {
 import { RoleType } from '@/types/jwt.types'
 import { Socket } from 'socket.io-client'
 import { socketInstance } from '@/lib/socket'
+import LogoutSocket from '@/components/logout-socket'
 
 // Create a client
 export const queryClient = new QueryClient({
@@ -74,6 +75,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
       <QueryClientProvider client={queryClient}>
         {children}
         <RefreshToken />
+        <LogoutSocket />
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </AppContext>
