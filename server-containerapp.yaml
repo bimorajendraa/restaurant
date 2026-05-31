@@ -1,0 +1,85 @@
+type: Microsoft.App/containerApps
+name: ca-resto-bigboy-server
+resourceGroup: rg-resto-bigboy
+location: southeastasia
+identity:
+  type: SystemAssigned
+properties:
+  managedEnvironmentId: __MANAGED_ENV_ID__
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      external: true
+      targetPort: 4000
+      transport: auto
+      allowInsecure: false
+    registries:
+      - server: __ACR_NAME__.azurecr.io
+        identity: system
+    secrets:
+      - name: db-connection-string
+        value: "__DATABASE_URL__"
+      - name: access-token-secret
+        value: "__ACCESS_TOKEN_SECRET__"
+      - name: refresh-token-secret
+        value: "__REFRESH_TOKEN_SECRET__"
+      - name: initial-password-owner
+        value: "__INITIAL_PASSWORD_OWNER__"
+  template:
+    containers:
+      - name: server
+        image: __ACR_NAME__.azurecr.io/resto-bigboy-server:latest
+        env:
+          - name: NODE_ENV
+            value: production
+          - name: PORT
+            value: "4000"
+          - name: DOCKER_HOST
+            value: 0.0.0.0
+          - name: DATABASE_URL
+            secretRef: db-connection-string
+          - name: ACCESS_TOKEN_SECRET
+            secretRef: access-token-secret
+          - name: REFRESH_TOKEN_SECRET
+            secretRef: refresh-token-secret
+          - name: ACCESS_TOKEN_EXPIRES_IN
+            value: 15m
+          - name: REFRESH_TOKEN_EXPIRES_IN
+            value: 7d
+          - name: GUEST_ACCESS_TOKEN_EXPIRES_IN
+            value: 15m
+          - name: GUEST_REFRESH_TOKEN_EXPIRES_IN
+            value: 7d
+          - name: INITIAL_EMAIL_OWNER
+            value: admin@order.com
+          - name: INITIAL_PASSWORD_OWNER
+            secretRef: initial-password-owner
+          - name: DOMAIN
+            value: __SERVER_DOMAIN__
+          - name: PROTOCOL
+            value: https
+          - name: UPLOAD_FOLDER
+            value: uploads
+          - name: CLIENT_URL
+            value: https://__CLIENT_DOMAIN__
+          - name: CLIENT_DOCKER_URL
+            value: https://__CLIENT_DOMAIN__
+          - name: PRODUCTION
+            value: "true"
+          - name: PRODUCTION_URL
+            value: https://__SERVER_DOMAIN__
+          - name: SERVER_TIMEZONE
+            value: Asia/Jakarta
+        volumeMounts:
+          - volumeName: uploads-volume
+            mountPath: /app/uploads
+        resources:
+          cpu: 0.5
+          memory: 1.0Gi
+    volumes:
+      - name: uploads-volume
+        storageType: AzureFile
+        storageName: uploads-volume
+    scale:
+      minReplicas: 1
+      maxReplicas: 3

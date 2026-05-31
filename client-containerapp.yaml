@@ -1,0 +1,28 @@
+type: Microsoft.App/containerApps
+name: ca-resto-bigboy-client
+resourceGroup: rg-resto-bigboy
+location: southeastasia
+identity:
+  type: SystemAssigned
+properties:
+  managedEnvironmentId: __MANAGED_ENV_ID__
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      external: true
+      targetPort: 3000
+      transport: auto
+      allowInsecure: false
+    registries:
+      - server: __ACR_NAME__.azurecr.io
+        identity: system
+  template:
+    containers:
+      - name: client
+        image: __ACR_NAME__.azurecr.io/resto-bigboy-client:latest
+        resources:
+          cpu: 0.5
+          memory: 1.0Gi
+    scale:
+      minReplicas: 1
+      maxReplicas: 3
