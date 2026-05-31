@@ -180,7 +180,7 @@ az acr build --registry $acrName --image resto-bigboy-client:latest `
 
 # 10. Jalankan Migrasi Database Prisma secara Lokal
 Write-Host "`n[Langkah 9/9] Menjalankan Prisma Database Migration secara lokal ke cloud DB..." -ForegroundColor Yellow
-$dbUrl = "postgresql://$postgresAdminUser:$postgresAdminPassword@$postgresServerName.postgres.database.azure.com:5432/$postgresDbName?sslmode=require"
+$dbUrl = "postgresql://${postgresAdminUser}:${postgresAdminPassword}@${postgresServerName}.postgres.database.azure.com:5432/${postgresDbName}?sslmode=require"
 $origDbUrl = $env:DATABASE_URL
 
 try {
