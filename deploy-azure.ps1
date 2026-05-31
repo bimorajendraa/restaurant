@@ -20,13 +20,15 @@ az account set --subscription $subId
 # 2. Pendaftaran Providers & Ekstensi Azure CLI
 Write-Host "`n[Langkah 2/9] Memastikan ekstensi dan provider Azure terdaftar..." -ForegroundColor Yellow
 az extension add --name containerapp --upgrade --yes
-az provider register --namespace Microsoft.App
-az provider register --namespace Microsoft.OperationalInsights
+az provider register --namespace Microsoft.App --subscription $subId
+az provider register --namespace Microsoft.OperationalInsights --subscription $subId
 
 # 3. Inisialisasi Nama Resource Unik
 $uniqueId = Get-Random -Minimum 10000 -Maximum 99999
 $rgName = "rg-resto-bigboy-prod"
-$location = "southeastasia"
+# Menggunakan region 'eastus' karena 'southeastasia' memiliki batas 1 Container App Environment
+# pada akun Azure for Students, yang saat ini masih terkunci oleh proses penghapusan.
+$location = "eastus"
 $acrName = "acrrestobigboy$uniqueId"
 $storageAccountName = "sarestobigboy$uniqueId"
 $postgresServerName = "pg-resto-bigboy-$uniqueId"
@@ -50,7 +52,7 @@ Write-Host "====================================" -ForegroundColor Green
 
 # 4. Membuat Resource Group
 Write-Host "`n[Langkah 3/9] Membuat Resource Group..." -ForegroundColor Yellow
-az group create --name $rgName --location $location
+az group create --name $rgName --location $location --subscription $subId
 
 # 5. Membuat Database PostgreSQL Flexible Server
 Write-Host "`n[Langkah 4/9] Membuat PostgreSQL Flexible Server (ini mungkin memakan waktu 2-3 menit)..." -ForegroundColor Yellow
@@ -63,14 +65,16 @@ az postgres flexible-server create `
   --sku-name Standard_B1ms `
   --tier Burstable `
   --public-access 0.0.0.0 `
+  --subscription $subId `
   --yes
 
-# Membuat Database di dalam server (Syntax CLI yang kompatibel)
+# Membuat Database di dalam server
 Write-Host "Membuat database '$postgresDbName' di dalam server PostgreSQL..." -ForegroundColor Yellow
 az postgres flexible-server db create `
   --resource-group $rgName `
   --server-name $postgresServerName `
-  --database-name $postgresDbName
+  --database-name $postgresDbName `
+  --subscription $subId
 
 # Konfigurasi Firewall untuk semua IP internal Azure
 Write-Host "Menambahkan aturan firewall untuk layanan Azure..." -ForegroundColor Yellow
@@ -79,7 +83,8 @@ az postgres flexible-server firewall-rule create `
   --name $postgresServerName `
   --rule-name AllowAllAzureIPs `
   --start-ip-address 0.0.0.0 `
-  --end-ip-address 0.0.0.0
+  --end-ip-address 0.0.0.0 `
+  --subscription $subId
 
 # Dapatkan IP Lokal Developer dan daftarkan ke firewall agar bisa running prisma migration
 $myIp = (Invoke-RestMethod -Uri "https://api.ipify.org").Trim()
@@ -89,7 +94,8 @@ az postgres flexible-server firewall-rule create `
   --name $postgresServerName `
   --rule-name AllowDeveloperIP `
   --start-ip-address $myIp `
-  --end-ip-address $myIp
+  --end-ip-address $myIp `
+  --subscription $subId
 
 # 6. Membuat Storage Account & File Share
 Write-Host "`n[Langkah 5/9] Membuat Storage Account dan File Share untuk media uploads..." -ForegroundColor Yellow
@@ -98,18 +104,21 @@ az storage account create `
   --resource-group $rgName `
   --location $location `
   --sku Standard_LRS `
-  --kind StorageV2
+  --kind StorageV2 `
+  --subscription $subId
 
 $storageKey = (az storage account keys list `
   --resource-group $rgName `
   --account-name $storageAccountName `
   --query "[0].value" `
+  --subscription $subId `
   --output tsv)
 
 az storage share create `
   --name uploads-share `
   --account-name $storageAccountName `
-  --account-key $storageKey
+  --account-key $storageKey `
+  --subscription $subId
 
 # 7. Membuat Azure Container Registry (ACR)
 Write-Host "`n[Langkah 6/9] Membuat Azure Container Registry..." -ForegroundColor Yellow
@@ -117,14 +126,16 @@ az acr create `
   --resource-group $rgName `
   --name $acrName `
   --sku Basic `
-  --admin-enabled true
+  --admin-enabled true `
+  --subscription $subId
 
 # 8. Membuat ACA Environment & Placeholder Apps untuk reservasi domain FQDN
 Write-Host "`n[Langkah 7/9] Membuat Container Apps Environment..." -ForegroundColor Yellow
 az containerapp env create `
   --name cae-resto-bigboy `
   --resource-group $rgName `
-  --location $location
+  --location $location `
+  --subscription $subId
 
 # Daftarkan storage volume di ACA Env (Menggunakan parameter terbaru yang valid)
 az containerapp env storage set `
@@ -134,12 +145,14 @@ az containerapp env storage set `
   --azure-file-account-name $storageAccountName `
   --azure-file-account-key $storageKey `
   --azure-file-share-name uploads-share `
-  --access-mode ReadWrite
+  --access-mode ReadWrite `
+  --subscription $subId
 
 $envId = (az containerapp env show `
   --name cae-resto-bigboy `
   --resource-group $rgName `
   --query "id" `
+  --subscription $subId `
   --output tsv)
 
 Write-Host "Membuat placeholder container apps untuk reservasi FQDN..." -ForegroundColor Yellow
@@ -149,7 +162,8 @@ az containerapp create `
   --environment cae-resto-bigboy `
   --image mcr.microsoft.com/azuredocs/aci-helloworld:latest `
   --target-port 4000 `
-  --ingress external
+  --ingress external `
+  --subscription $subId
 
 az containerapp create `
   --name ca-resto-bigboy-client `
@@ -157,29 +171,30 @@ az containerapp create `
   --environment cae-resto-bigboy `
   --image mcr.microsoft.com/azuredocs/aci-helloworld:latest `
   --target-port 3000 `
-  --ingress external
+  --ingress external `
+  --subscription $subId
 
 # Ambil FQDN domain yang tereservasi
-$serverFqdn = (az containerapp show --name ca-resto-bigboy-server --resource-group $rgName --query "properties.configuration.ingress.fqdn" --output tsv)
-$clientFqdn = (az containerapp show --name ca-resto-bigboy-client --resource-group $rgName --query "properties.configuration.ingress.fqdn" --output tsv)
+$serverFqdn = (az containerapp show --name ca-resto-bigboy-server --resource-group $rgName --query "properties.configuration.ingress.fqdn" --subscription $subId --output tsv)
+$clientFqdn = (az containerapp show --name ca-resto-bigboy-client --resource-group $rgName --query "properties.configuration.ingress.fqdn" --subscription $subId --output tsv)
 
 Write-Host "Reserved Server FQDN: https://$serverFqdn" -ForegroundColor Green
 Write-Host "Reserved Client FQDN: https://$clientFqdn" -ForegroundColor Green
 
 # Assign Managed Identity agar Container Apps bisa menarik image dari ACR tanpa password
 Write-Host "Mengonfigurasi Managed Identity untuk pull image dari ACR..." -ForegroundColor Yellow
-$serverIdentity = (az containerapp identity assign --name ca-resto-bigboy-server --resource-group $rgName --system-assigned --query "principalId" --output tsv)
-$clientIdentity = (az containerapp identity assign --name ca-resto-bigboy-client --resource-group $rgName --system-assigned --query "principalId" --output tsv)
-$acrId = (az acr show --name $acrName --resource-group $rgName --query "id" --output tsv)
+$serverIdentity = (az containerapp identity assign --name ca-resto-bigboy-server --resource-group $rgName --system-assigned --query "principalId" --subscription $subId --output tsv)
+$clientIdentity = (az containerapp identity assign --name ca-resto-bigboy-client --resource-group $rgName --system-assigned --query "principalId" --subscription $subId --output tsv)
+$acrId = (az acr show --name $acrName --resource-group $rgName --query "id" --subscription $subId --output tsv)
 
 # Coba berikan role assignment (beri delay beberapa detik untuk propagasi identitas)
 Start-Sleep -Seconds 10
-az role assignment create --assignee $serverIdentity --role AcrPull --scope $acrId
-az role assignment create --assignee $clientIdentity --role AcrPull --scope $acrId
+az role assignment create --assignee $serverIdentity --role AcrPull --scope $acrId --subscription $subId
+az role assignment create --assignee $clientIdentity --role AcrPull --scope $acrId --subscription $subId
 
 # 9. Local Build & Push Menggunakan Docker Daemon Lokal (Solusi Pembatasan ACR Tasks)
 Write-Host "`n[Langkah 8/9] Memulai login dan build Docker Image secara lokal..." -ForegroundColor Yellow
-az acr login --name $acrName
+az acr login --name $acrName --subscription $subId
 
 Write-Host "Building & Pushing Backend Server..." -ForegroundColor Cyan
 docker build -t "$acrName.azurecr.io/resto-bigboy-server:latest" ./server
@@ -242,8 +257,8 @@ Write-Host "`nMemperbarui Container Apps dengan konfigurasi final..." -Foregroun
   | Set-Content temp-client.yaml
 
 # Terapkan update
-az containerapp update --name ca-resto-bigboy-server --resource-group $rgName --yaml temp-server.yaml
-az containerapp update --name ca-resto-bigboy-client --resource-group $rgName --yaml temp-client.yaml
+az containerapp update --name ca-resto-bigboy-server --resource-group $rgName --yaml temp-server.yaml --subscription $subId
+az containerapp update --name ca-resto-bigboy-client --resource-group $rgName --yaml temp-client.yaml --subscription $subId
 
 # Bersihkan file sementara
 Remove-Item temp-server.yaml -Force
