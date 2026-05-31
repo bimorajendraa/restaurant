@@ -25,7 +25,7 @@ az provider register --namespace Microsoft.OperationalInsights
 
 # 3. Inisialisasi Nama Resource Unik
 $uniqueId = Get-Random -Minimum 10000 -Maximum 99999
-$rgName = "rg-resto-bigboy"
+$rgName = "rg-resto-bigboy-prod"
 $location = "southeastasia"
 $acrName = "acrrestobigboy$uniqueId"
 $storageAccountName = "sarestobigboy$uniqueId"
@@ -65,12 +65,12 @@ az postgres flexible-server create `
   --public-access 0.0.0.0 `
   --yes
 
-# Membuat Database di dalam server (Syntax CLI terbaru 2026)
+# Membuat Database di dalam server (Syntax CLI yang kompatibel)
 Write-Host "Membuat database '$postgresDbName' di dalam server PostgreSQL..." -ForegroundColor Yellow
 az postgres flexible-server db create `
   --resource-group $rgName `
   --server-name $postgresServerName `
-  --name $postgresDbName
+  --database-name $postgresDbName
 
 # Konfigurasi Firewall untuk semua IP internal Azure
 Write-Host "Menambahkan aturan firewall untuk layanan Azure..." -ForegroundColor Yellow
