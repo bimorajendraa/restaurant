@@ -1,6 +1,6 @@
 # deploy-azure.ps1
 # Script Deployment Restaurant Management System ("resto-bigboy") ke Azure Container Apps
-# Pastikan Anda telah menginstal Azure CLI dan login ke GitHub CLI / Git sebelum menjalankan script ini.
+# Menggunakan local Docker untuk build & push (mendukung akun Azure for Students)
 
 $ErrorActionPreference = "Stop"
 
@@ -11,6 +11,11 @@ Write-Host "==========================================================" -Foregro
 # 1. Login Azure
 Write-Host "`n[Langkah 1/9] Melakukan autentikasi ke Azure..." -ForegroundColor Yellow
 az login
+
+# Mengatur subskripsi aktif secara eksplisit
+$subId = (az account show --query "id" --output tsv)
+Write-Host "Menggunakan Subskripsi: $subId" -ForegroundColor Green
+az account set --subscription $subId
 
 # 2. Pendaftaran Providers & Ekstensi Azure CLI
 Write-Host "`n[Langkah 2/9] Memastikan ekstensi dan provider Azure terdaftar..." -ForegroundColor Yellow
@@ -58,8 +63,14 @@ az postgres flexible-server create `
   --sku-name Standard_B1ms `
   --tier Burstable `
   --public-access 0.0.0.0 `
-  --database-name $postgresDbName `
   --yes
+
+# Membuat Database di dalam server (Syntax CLI terbaru 2026)
+Write-Host "Membuat database '$postgresDbName' di dalam server PostgreSQL..." -ForegroundColor Yellow
+az postgres flexible-server db create `
+  --resource-group $rgName `
+  --server-name $postgresServerName `
+  --name $postgresDbName
 
 # Konfigurasi Firewall untuk semua IP internal Azure
 Write-Host "Menambahkan aturan firewall untuk layanan Azure..." -ForegroundColor Yellow
@@ -115,14 +126,14 @@ az containerapp env create `
   --resource-group $rgName `
   --location $location
 
-# Daftarkan storage volume di ACA Env
+# Daftarkan storage volume di ACA Env (Menggunakan parameter terbaru yang valid)
 az containerapp env storage set `
   --name cae-resto-bigboy `
   --resource-group $rgName `
   --storage-name uploads-volume `
-  --account-name $storageAccountName `
-  --account-key $storageKey `
-  --share-name uploads-share `
+  --azure-file-account-name $storageAccountName `
+  --azure-file-account-key $storageKey `
+  --azure-file-share-name uploads-share `
   --access-mode ReadWrite
 
 $envId = (az containerapp env show `
@@ -166,19 +177,23 @@ Start-Sleep -Seconds 10
 az role assignment create --assignee $serverIdentity --role AcrPull --scope $acrId
 az role assignment create --assignee $clientIdentity --role AcrPull --scope $acrId
 
-# 9. Cloud Build & Push Menggunakan `az acr build`
-Write-Host "`n[Langkah 8/9] Memulai kompilasi Docker Image di cloud Azure (ACR Build)..." -ForegroundColor Yellow
-Write-Host "Building Backend Server..." -ForegroundColor Cyan
-az acr build --registry $acrName --image resto-bigboy-server:latest ./server
+# 9. Local Build & Push Menggunakan Docker Daemon Lokal (Solusi Pembatasan ACR Tasks)
+Write-Host "`n[Langkah 8/9] Memulai login dan build Docker Image secara lokal..." -ForegroundColor Yellow
+az acr login --name $acrName
 
-Write-Host "Building Frontend Client (dengan API Endpoint FQDN)..." -ForegroundColor Cyan
-az acr build --registry $acrName --image resto-bigboy-client:latest `
+Write-Host "Building & Pushing Backend Server..." -ForegroundColor Cyan
+docker build -t "$acrName.azurecr.io/resto-bigboy-server:latest" ./server
+docker push "$acrName.azurecr.io/resto-bigboy-server:latest"
+
+Write-Host "Building & Pushing Frontend Client (dengan API Endpoint FQDN)..." -ForegroundColor Cyan
+docker build -t "$acrName.azurecr.io/resto-bigboy-client:latest" `
   --build-arg NEXT_PUBLIC_API_ENDPOINT="https://$serverFqdn" `
   --build-arg NEXT_PUBLIC_URL="https://$clientFqdn" `
   --build-arg DOCKER_PUBLIC_API_ENDPOINT="https://$serverFqdn" `
   ./client
+docker push "$acrName.azurecr.io/resto-bigboy-client:latest"
 
-# 10. Jalankan Migrasi Database Prisma secara Lokal
+# 10. Jalankan Migrasi Database Prisma secara Lokal menggunakan Local Dependencies
 Write-Host "`n[Langkah 9/9] Menjalankan Prisma Database Migration secara lokal ke cloud DB..." -ForegroundColor Yellow
 $dbUrl = "postgresql://${postgresAdminUser}:${postgresAdminPassword}@${postgresServerName}.postgres.database.azure.com:5432/${postgresDbName}?sslmode=require"
 $origDbUrl = $env:DATABASE_URL
@@ -186,10 +201,15 @@ $origDbUrl = $env:DATABASE_URL
 try {
   $env:DATABASE_URL = $dbUrl
   Set-Location -Path "server"
-  Write-Host "Mengeksekusi npx prisma generate..."
-  npx prisma generate
-  Write-Host "Mengeksekusi npx prisma migrate deploy..."
-  npx prisma migrate deploy
+  
+  Write-Host "Menginstal local dependencies server untuk memastikan ketersediaan prisma CLI..."
+  npm install
+  
+  Write-Host "Mengeksekusi prisma generate..."
+  npm run prisma:generate
+  
+  Write-Host "Mengeksekusi prisma migrate deploy..."
+  npm run migrate:deploy
 }
 finally {
   Set-Location -Path ".."
